@@ -1,0 +1,3 @@
+/notebooks/__*
+/src/models/__*
+.ipynb_checkpoints
