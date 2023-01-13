@@ -128,8 +128,8 @@ def split_and_scale_data(data, sparsity_mask, train_val_split, scale_to):
     ## Split inputs and targets:
     train_input = data_sparse_scaled[:n_train]
     val_input = data_sparse_scaled[n_train:]
-    train_target = data[:n_train]
-    val_target = data[n_train:]
+    train_target = data_scaled[:n_train]
+    val_target = data_scaled[n_train:]
 
     # Add dimension for number of channels, required for Conv2D:
     train_input = np.expand_dims(train_input, axis=-1)
