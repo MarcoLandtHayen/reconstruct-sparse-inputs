@@ -19,7 +19,7 @@ def load_data(source="slp_realworld"):
     if source=="slp_realworld":
         
         # Open data set:
-        slp_dataset=xr.open_dataset("GitHub/reconstruct-sparse-inputs/data/raw/pres.sfc.mon.mean.nc")
+        slp_dataset=xr.open_dataset("GitHub/MarcoLandtHayen/reconstruct-sparse-inputs/data/raw/pres.sfc.mon.mean.nc")
 
         # Start with raw slp fields as lat/lon grids in time, from 1948 to date:
         slp_fields = (
@@ -72,8 +72,8 @@ def create_sparsity_mask(data, sparsity):
 
 def split_and_scale_data(data, sparsity_mask, train_val_split, scale_to):
     
-    """Apply sparsity mask to complete data. Then split data into training and validation sets and optionally scale or normalize values, 
-    according to statistics obtained from training data.
+    """Optionally scale or normalize values, according to statistics obtained from training data.
+    Then apply sparsity mask and split data into training and validation sets.
 
     Parameters
     ----------
@@ -93,10 +93,7 @@ def split_and_scale_data(data, sparsity_mask, train_val_split, scale_to):
     train_min, train_max, train_mean, train_std: float
         Statistics obtained from training data: Minimum, maximum, mean and standard deviation, respectively.    
     """
-    
-    # Get sparse data by applying given sparsity mask to complete data:
-    data_sparse = data * sparsity_mask
-    
+   
     # Get number of train samples:
     n_train = int(len(data) * train_val_split)
 
@@ -104,26 +101,30 @@ def split_and_scale_data(data, sparsity_mask, train_val_split, scale_to):
     # Or normalize inputs to have zero mean and unit variance. 
 
     # Remenber min/max used for scaling.
-    train_min = np.min(data_sparse[:n_train])
-    train_max = np.max(data_sparse[:n_train])
+    train_min = np.min(data[:n_train])
+    train_max = np.max(data[:n_train])
 
     # Remenber mean and std dev used for scaling.
-    train_mean = np.mean(data_sparse[:n_train])
-    train_std = np.std(data_sparse[:n_train])
+    train_mean = np.mean(data[:n_train])
+    train_std = np.std(data[:n_train])
 
     # Scale or normalize inputs depending on desired scaling parameter:
     if scale_to == 'one_one':
         # Scale inputs to [-1,1]:
-        data_sparse_scaled = 2 * (data_sparse - train_min) / (train_max - train_min) - 1
+        data_scaled = 2 * (data - train_min) / (train_max - train_min) - 1
 
     elif scale_to == 'zero_one':
         # Alternatively scale inputs to [0,1]
-        data_sparse_scaled = (data_sparse - train_min) / (train_max - train_min)
+        data_scaled = (data - train_min) / (train_max - train_min)
 
     elif scale_to == 'norm':
         # Alternatively scale inputs to [0,1]
-        data_sparse_scaled = (data_sparse - train_mean) / train_std
+        data_scaled = (data - train_mean) / train_std
 
+    # Get sparse data by applying given sparsity mask to scaled/normalized data:
+    data_sparse_scaled = data_scaled * sparsity_mask
+
+        
     ## Split inputs and targets:
     train_input = data_sparse_scaled[:n_train]
     val_input = data_sparse_scaled[n_train:]

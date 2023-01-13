@@ -33,12 +33,33 @@ learning_rate = 0.0005
 loss_function = 'mse' 
 
 # Train model:
-epochs = 3
+epochs = 10
 batch_size = 10
 
 # Model configuration, to store results:
 model_config = 'unet_4conv'
 
+# Create directory to store results: Raise error, if path already exists, to avoid overwriting existing results. 
+path = Path('GitHub/MarcoLandtHayen/reconstruct-sparse-inputs/results/'+model_config+"_"+source)
+os.makedirs(path, exist_ok=False)
+    
+# Store parameters as json:
+parameters = {
+    'model_config': model_config,
+    'source': source,
+    'train_val_split': train_val_split,
+    'sparsity_all': sparsity_all,
+    'scale_to': scale_to,
+    'CNN_filters': CNN_filters,
+    'CNN_kernel_size': CNN_kernel_size,
+    'learning_rate': learning_rate,
+    'loss_function': loss_function,
+    'epochs': epochs,
+    'batch_size': batch_size
+}
+
+with open(path / 'parameters.json', 'w') as f:
+    dump(parameters, f)
 
 ## Train models:
 
@@ -51,27 +72,8 @@ for i in range(len(sparsity_all)):
     # Print status:
     print("Sparsity: ", i+1, " of ", len(sparsity_all))
     
-    # Create path to store results: Raise error, if path already exists, to avoid overwriting existing results.
-    path = Path('GitHub/reconstruct-sparse-inputs/results/'+model_config+"_"+source+"_sparsity"+str(int(sparsity*100)))
-    os.makedirs(path, exist_ok=False)
-    
-    # Store parameters as json:
-    parameters = {
-        'source': source,
-        'train_val_split': train_val_split,
-        'sparsity': sparsity,
-        'scale_to': scale_to,
-        'CNN_filters': CNN_filters,
-        'CNN_kernel_size': CNN_kernel_size,
-        'learning_rate': learning_rate,
-        'loss_function': loss_function,
-        'epochs': epochs,
-        'batch_size': batch_size,
-        'model_config': model_config
-    }
-    
-    with open(path / 'parameters.json', 'w') as f:
-        dump(parameters, f)
+    # Create sub-directory to store results: Raise error, if path already exists, to avoid overwriting existing results.
+    os.makedirs(path / 'sparsity_' f'{int(sparsity*100)}', exist_ok=False)
     
     # Load data:
     data = load_data(source=source)
@@ -80,7 +82,7 @@ for i in range(len(sparsity_all)):
     sparsity_mask = create_sparsity_mask(data=data, sparsity=sparsity)
     
     # Store sparsity mask:
-    np.save(path / 'sparsity_mask.npy', sparsity_mask)
+    np.save(path / 'sparsity_' f'{int(sparsity*100)}' / 'sparsity_mask.npy', sparsity_mask)
 
     # Use sparse data as inputs and complete data as targets. Split sparse and complete data into training and validation sets. 
     # Scale or normlalize data according to statistics obtained from only training data.
@@ -100,7 +102,7 @@ for i in range(len(sparsity_all)):
                         )
     
     # Save untrained model:
-    model.save(path / f'epoch_{0}')
+    model.save(path / 'sparsity_' f'{int(sparsity*100)}' / f'epoch_{0}')
     
     # Initialize storage for training and validation loss:
     train_loss=[]
@@ -125,7 +127,7 @@ for i in range(len(sparsity_all)):
                             batch_size=batch_size, validation_data=(val_input, val_target))
         
         # Save trained model after current epoch:
-        model.save(path / f'epoch_{j+1}')
+        model.save(path / 'sparsity_' f'{int(sparsity*100)}' / f'epoch_{j+1}')
         
         # Get model predictions on train and validation data AFTER current epoch:
         train_pred = model.predict(train_input)
@@ -136,5 +138,5 @@ for i in range(len(sparsity_all)):
         val_loss.append(np.mean((val_pred[:,:,:,0]-val_target)**2))  
         
     # Save loss:
-    np.save(path / 'train_loss.npy', train_loss)
-    np.save(path / 'val_loss.npy', val_loss)
+    np.save(path / 'sparsity_' f'{int(sparsity*100)}' / 'train_loss.npy', train_loss)
+    np.save(path / 'sparsity_' f'{int(sparsity*100)}' / 'val_loss.npy', val_loss)
