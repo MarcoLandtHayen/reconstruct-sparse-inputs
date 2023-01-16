@@ -14,14 +14,16 @@ from json import dump, load
 
 import numpy as np
 
-from data import load_data, create_sparsity_mask, split_and_scale_data
+from data import load_data, clone_data, create_sparsity_mask, split_and_scale_data
 from models import build_unet_4conv
 
 
 ## Set parameters upfront:
 
 # Data loading and preprocessing:
-source = "slp_realworld" # Choose either sea level pressure (slp) or sea surface temperature (sst) from real world or model data.
+source = 'slp_realworld' # Choose either sea level pressure (slp) or sea surface temperature (sst) from real world or model data.
+mask_type = 'variable' # Can have random sparsity mask, individually for each data sample ('variable'), or create only a single random mask, that is then applied to all samples identically ('fixed').
+augmentation_factor = 3 # Number of times, each sample is to be cloned, keeping the original order.
 train_val_split = 0.8 # Set rel. amount of samples used for training.
 sparsity_all = [0.99, 0.95, 0.9, 0.75, 0.5] # Set array for desired sparsity of input samples: 0.9 means, that 90% of the values are missing.
 scale_to = 'zero_one' # Choose to scale inputs to [-1,1] ('one_one') or [0,1] ('zero_one') or 'norm' to normalize inputs or 'no' scaling.
@@ -40,13 +42,15 @@ batch_size = 10
 model_config = 'unet_4conv'
 
 # Create directory to store results: Raise error, if path already exists, to avoid overwriting existing results. 
-path = Path('GitHub/MarcoLandtHayen/reconstruct-sparse-inputs/results/'+model_config+"_"+source)
+path = Path('GitHub/MarcoLandtHayen/reconstruct-sparse-inputs/results/'+model_config+'_'+source+'_'+mask_type+'_factor_'+str(augmentation_factor))
 os.makedirs(path, exist_ok=False)
     
 # Store parameters as json:
 parameters = {
     'model_config': model_config,
     'source': source,
+    'mask_type': mask_type,
+    'augmentation_factor': augmentation_factor,
     'train_val_split': train_val_split,
     'sparsity_all': sparsity_all,
     'scale_to': scale_to,
@@ -78,8 +82,11 @@ for i in range(len(sparsity_all)):
     # Load data:
     data = load_data(source=source)
     
+    # Extend data, if desired:
+    data = clone_data(data=data, augmentation_factor=augmentation_factor)
+    
     # Create sparsity mask:
-    sparsity_mask = create_sparsity_mask(data=data, sparsity=sparsity)
+    sparsity_mask = create_sparsity_mask(data=data, sparsity=sparsity, mask_type=mask_type)
     
     # Store sparsity mask:
     np.save(path / 'sparsity_' f'{int(sparsity*100)}' / 'sparsity_mask.npy', sparsity_mask)

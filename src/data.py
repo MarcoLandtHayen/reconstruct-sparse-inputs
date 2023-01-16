@@ -48,7 +48,39 @@ def load_data(source="slp_realworld"):
     else:
         raise NotImplementedError('Unknown source file, unable to load data.')
         
-def create_sparsity_mask(data, sparsity):
+def clone_data(data, augmentation_factor):
+    
+    """Clone each data sample multiple times, keeping the original order.
+    Having e.g. three samples A,B,C, the resulting cloned collection with augmentation_factor=2 is: A,A,B,B,C,C.
+
+    Parameters
+    ----------
+    data: numpy.ndarray
+        Data set containing samples to be cloned.
+    augmentation_factor: int
+        Number of times, each sample is to be cloned.
+   
+    Returns
+    -------
+    numpy.ndarray
+        Extended data.
+    """
+
+    # Initialize storage for extended data set. Dimension: (#samples * factor, latitude, longitude)
+    extended_data = np.zeros((data.shape[0]*augmentation_factor, data.shape[1], data.shape[2]))
+    
+    # Loop over samples:
+    for i in range(len(data)):
+        
+        # Loop over augmentation_facor:
+        for j in range(augmentation_factor):
+            
+            # Store sample in extended data set:
+            extended_data[i*augmentation_factor+j,:,:] = data[i,:,:]
+            
+    return extended_data
+
+def create_sparsity_mask(data, sparsity, mask_type='variable'):
     
     """Create zero-inflated sparsity mask fitting complete data's dimensions.
 
@@ -58,6 +90,9 @@ def create_sparsity_mask(data, sparsity):
         Data set containing complete 2D fields.
     sparsity: float
         Desired sparsity, e.g. 0.9 means, that 90% of the values are set to zero.
+    mask_type: string
+        Can have random sparsity mask, individually for each data sample ('variable'), as default. 
+        Or create only a single random mask, that is then applied to all samples identically ('fixed').
    
     Returns
     -------
@@ -65,8 +100,16 @@ def create_sparsity_mask(data, sparsity):
         Sparsity mask.
     """
     
-    # Get sparsity mask from random uniform distribution in [0,1]:
-    sparsity_mask = (np.random.uniform(low=0.0, high=1.0, size=data.shape)>sparsity).astype(int)
+    if mask_type=='variable':
+
+        # Get sparsity mask from random uniform distribution in [0,1]:
+        sparsity_mask = (np.random.uniform(low=0.0, high=1.0, size=data.shape)>sparsity).astype(int)
+        
+    elif mask_type=='fixed':
+        
+        # Get single sparsity mask and repeat this mask for all samples:
+        sparsity_mask_single = (np.random.uniform(low=0.0, high=1.0, size=(1, data.shape[1], data.shape[2]))>sparsity).astype(int)
+        sparsity_mask = np.repeat(sparsity_mask_single,data.shape[0],axis=0)
 
     return sparsity_mask
 
